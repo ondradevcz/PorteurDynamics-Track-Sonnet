@@ -1,0 +1,56 @@
+#include "Adafruit_TinyUSB.h"
+
+uint8_t const desc_hid_report[] = {
+  TUD_HID_REPORT_DESC_GAMEPAD()
+};
+
+Adafruit_USBD_HID usb_hid;
+hid_gamepad_report_t gp;
+
+#define BTN_PIN 15
+
+void setup() {
+  if (!TinyUSBDevice.isInitialized()) {
+    TinyUSBDevice.begin(0);
+  }
+
+  Serial.begin(115200);
+
+  pinMode(BTN_PIN, INPUT_PULLUP);
+
+  usb_hid.setPollInterval(2);
+  usb_hid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
+  usb_hid.begin();
+
+  if (TinyUSBDevice.mounted()) {
+    TinyUSBDevice.detach();
+    delay(10);
+    TinyUSBDevice.attach();
+  }
+}
+
+void loop() {
+#ifdef TINYUSB_NEED_POLLING_TASK
+  TinyUSBDevice.task();
+#endif
+
+  if (!TinyUSBDevice.mounted()) return;
+  if (!usb_hid.ready()) return;
+
+  gp.x = 0;
+  gp.y = 0;
+  gp.z = 0;
+  gp.rz = 0;
+  gp.rx = 0;
+  gp.ry = 0;
+  gp.hat = 0;
+  gp.buttons = 0;
+
+  // button on GP15 to GND
+  if (digitalRead(BTN_PIN) == LOW) {
+    gp.buttons = 0x0001;
+  }
+
+  usb_hid.sendReport(0, &gp, sizeof(gp));
+  delay(20);
+}
